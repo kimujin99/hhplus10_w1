@@ -1,0 +1,133 @@
+package io.hhplus.tdd.point;
+
+import io.hhplus.tdd.database.PointHistoryTable;
+import io.hhplus.tdd.database.UserPointTable;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+@DisplayName("PointService 단위 테스트")
+class PointServiceTest {
+
+    @Mock
+    private UserPointTable userPointTable;
+
+    @Mock
+    private PointHistoryTable pointHistoryTable;
+
+    // TODO: PointService 구현 후 @InjectMocks 주석 해제
+    // @InjectMocks
+    // private PointService pointService;
+
+    @Test
+    @DisplayName("포인트 조회 - 성공")
+    void getUserPoint_Success() {
+        // given
+        long userId = 1L;
+        UserPoint expected = new UserPoint(userId, 1000L, System.currentTimeMillis());
+        when(userPointTable.selectById(userId)).thenReturn(expected);
+
+        // when
+        // TODO: PointService 구현 후 테스트 작성
+        // UserPoint result = pointService.getUserPoint(userId);
+
+        // then
+        // assertThat(result).isNotNull();
+        // assertThat(result.id()).isEqualTo(userId);
+        // assertThat(result.point()).isEqualTo(1000L);
+    }
+
+    @Test
+    @DisplayName("포인트 충전 - 성공")
+    void chargePoint_Success() {
+        // given
+        long userId = 1L;
+        long chargeAmount = 500L;
+        long currentPoint = 1000L;
+
+        // when
+        // TODO: PointService 구현 후 테스트 작성
+
+        // then
+        // assertThat(result.point()).isEqualTo(1500L);
+    }
+
+    @Test
+    @DisplayName("포인트 충전 - 실패: 음수 금액")
+    void chargePoint_Fail_NegativeAmount() {
+        // given
+        long userId = 1L;
+        long chargeAmount = -500L;
+
+        // when & then
+        // TODO: PointService 구현 후 예외 테스트 작성
+        // assertThatThrownBy(() -> pointService.chargePoint(userId, chargeAmount))
+        //     .isInstanceOf(IllegalArgumentException.class)
+        //     .hasMessage("충전 금액은 0보다 커야 합니다.");
+    }
+
+    @Test
+    @DisplayName("포인트 사용 - 성공")
+    void usePoint_Success() {
+        // given
+        long userId = 1L;
+        long useAmount = 300L;
+        long currentPoint = 1000L;
+
+        // when
+        // TODO: PointService 구현 후 테스트 작성
+
+        // then
+        // assertThat(result.point()).isEqualTo(700L);
+    }
+
+    @Test
+    @DisplayName("포인트 사용 - 실패: 잔액 부족")
+    void usePoint_Fail_InsufficientBalance() {
+        // given
+        long userId = 1L;
+        long useAmount = 2000L;
+        long currentPoint = 1000L;
+
+        // when & then
+        // TODO: PointService 구현 후 예외 테스트 작성
+        // assertThatThrownBy(() -> pointService.usePoint(userId, useAmount))
+        //     .isInstanceOf(IllegalArgumentException.class)
+        //     .hasMessage("포인트 잔액이 부족합니다.");
+    }
+
+    @Test
+    @DisplayName("포인트 사용 - 실패: 음수 금액")
+    void usePoint_Fail_NegativeAmount() {
+        // given
+        long userId = 1L;
+        long useAmount = -500L;
+
+        // when & then
+        // TODO: PointService 구현 후 예외 테스트 작성
+        // assertThatThrownBy(() -> pointService.usePoint(userId, useAmount))
+        //     .isInstanceOf(IllegalArgumentException.class)
+        //     .hasMessage("사용 금액은 0보다 커야 합니다.");
+    }
+
+    @Test
+    @DisplayName("포인트 히스토리 조회 - 성공")
+    void getPointHistory_Success() {
+        // given
+        long userId = 1L;
+
+        // when
+        // TODO: PointService 구현 후 테스트 작성
+
+        // then
+        // assertThat(histories).isNotNull();
+    }
+}

@@ -172,19 +172,19 @@ flowchart TD
 ```mermaid
 gantt
     title 동시성 문제 시나리오 (Lock 없이)
-    dateFormat X
-    axisFormat %L ms
+    dateFormat ss.SSS
+    axisFormat %S.%L ms
 
     section Thread 1
-        조회(point=1000)    :0, 50
-        계산(+500=1500)     :50, 100
-        저장(1500)          :100, 200
+    조회(point=1000)    :active, 00.000, 00.050
+    계산(+500=1500)     :00.050, 00.100
+    저장(1500)          :00.100, 00.200
 
     section Thread 2
-        조회(point=1000)    :30, 80
-        계산(+300=1300)     :80, 130
-        저장(1300)          :130, 230
+    조회(point=1000)    :active, 00.030, 00.080
+    계산(+300=1300)     :00.080, 00.130
+    저장(1300)          :crit, 00.130, 00.230
 
     section 결과
-        최종값=1300 (잘못됨!) :crit, 230, 250
+    최종값=1300 (잘못됨!) :milestone, 00.230, 00.230
 ```

@@ -16,6 +16,8 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -86,12 +88,37 @@ class PointServiceTest {
     void chargePoint_Success() {
         // given
         long userId = 1L;
-        long chargeAmount = 500L;
+        long chargeAmount = 1000L;
         long currentPoint = 1000L;
+        long newPoint = chargeAmount + currentPoint;
+
+        UserPoint current = new UserPoint(userId, currentPoint, System.currentTimeMillis());
+        UserPoint charged = new UserPoint(userId, newPoint, System.currentTimeMillis());
+
+        when(userPointTable.selectById(userId)).thenReturn(current);
+        when(userPointTable.insertOrUpdate(userId, newPoint)).thenReturn(charged);
+
         // when
+        UserPoint result = pointService.chargePoint(userId, chargeAmount);
 
         // then
-        // assertThat(result.point()).isEqualTo(1500L);
+        // 1. 반환값 검증
+        assertThat(result).isNotNull();
+        assertThat(result.point()).isEqualTo(newPoint);
+
+        // 2. 포인트 조회 검증
+        verify(userPointTable).selectById(userId);
+
+        // 3. 포인트 충전 검증
+        verify(userPointTable).insertOrUpdate(userId, newPoint);
+
+        // 4. 포인트 내역 등록 검증
+        verify(pointHistoryTable).insert(
+                eq(userId),
+                eq(chargeAmount),
+                eq(TransactionType.CHARGE),
+                anyLong()
+        );
     }
 
     @Test

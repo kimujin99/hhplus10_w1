@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -126,13 +127,25 @@ class PointServiceTest {
     void chargePoint_Fail_NegativeAmount() {
         // given
         long userId = 1L;
-        long chargeAmount = -500L;
+        long chargeAmount = -1000L;
 
         // when & then
-        // TODO: PointService 구현 후 예외 테스트 작성
-        // assertThatThrownBy(() -> pointService.chargePoint(userId, chargeAmount))
-        //     .isInstanceOf(IllegalArgumentException.class)
-        //     .hasMessage("충전 금액은 0보다 커야 합니다.");
+        assertThatThrownBy(() -> pointService.chargePoint(userId, chargeAmount))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("충전 금액은 0보다 커야합니다.");
+    }
+
+    @Test
+    @DisplayName("포인트 충전 - 실패: 단위 틀림(1000원)")
+    void chargePoint_Fail_InvalidUnit() {
+        // given
+        long userId = 1L;
+        long chargeAmount = 100L;
+
+        // when & then
+        assertThatThrownBy(() -> pointService.chargePoint(userId, chargeAmount))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("충전은 1000원 단위로만 가능합니다.");
     }
 
     @Test

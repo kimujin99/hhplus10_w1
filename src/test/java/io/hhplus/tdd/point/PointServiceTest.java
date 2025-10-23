@@ -155,12 +155,35 @@ class PointServiceTest {
         long userId = 1L;
         long useAmount = 300L;
         long currentPoint = 1000L;
+        long newPoint = currentPoint - useAmount;
+
+        UserPoint current = new UserPoint(userId, currentPoint, System.currentTimeMillis());
+        UserPoint used = new UserPoint(userId, newPoint, System.currentTimeMillis());
+
+        when(userPointTable.selectById(userId)).thenReturn(current);
+        when(userPointTable.insertOrUpdate(userId, newPoint)).thenReturn(used);
 
         // when
-        // TODO: PointService 구현 후 테스트 작성
+        UserPoint result = pointService.usePoint(userId, useAmount);
 
         // then
-        // assertThat(result.point()).isEqualTo(700L);
+        // 1. 반환값 검증
+        assertThat(result).isNotNull();
+        assertThat(result.point()).isEqualTo(700L);
+
+        // 2. 포인트 조회 검증
+        verify(userPointTable).selectById(userId);
+
+        // 3. 포인트 사용 검증
+        verify(userPointTable).insertOrUpdate(userId, newPoint);
+
+        // 4. 포인트 내역 등록 검증
+        verify(pointHistoryTable).insert(
+                eq(userId),
+                eq(useAmount),
+                eq(TransactionType.USE),
+                anyLong()
+        );
     }
 
     @Test

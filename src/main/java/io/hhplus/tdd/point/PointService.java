@@ -38,9 +38,8 @@ public class PointService {
     public UserPoint chargePoint (long userId, long amount) {
         validateAmount(amount, PointPolicy.CHARGE_UNIT, TransactionType.CHARGE.label());
 
-        // 유저별 락 생성
+        // 유저별 락 관리
         Object lock = userLocks.computeIfAbsent(userId, k -> new Object());
-
         synchronized (lock) {
             // 1. 포인트 조회
             UserPoint current = userPointTable.selectById(userId);
@@ -58,19 +57,21 @@ public class PointService {
     public UserPoint usePoint (long userId, long amount) {
         validateAmount(amount, PointPolicy.USE_UNIT, TransactionType.USE.label());
 
-        // 1. 포인트 조회
-        UserPoint current = userPointTable.selectById(userId);
-        long newPoint = current.point() - amount;
-        // 2. 잔액 부족 검증
-        if(newPoint < 0) {
-            throw new IllegalArgumentException("포인트 잔액이 부족합니다.");
+        Object lock = userLocks.computeIfAbsent(userId, k -> new Object());
+        synchronized (lock) {
+            // 1. 포인트 조회
+            UserPoint current = userPointTable.selectById(userId);
+            long newPoint = current.point() - amount;
+            // 2. 잔액 부족 검증
+            if(newPoint < 0) {
+                throw new IllegalArgumentException("포인트 잔액이 부족합니다.");
+            }
+            // 3. 포인트 사용
+            UserPoint updated = userPointTable.insertOrUpdate(userId, newPoint);
+            // 4. 포인트 히스토리 등록
+            pointHistoryTable.insert(userId, amount, TransactionType.USE, updated.updateMillis());
+            return updated;
         }
-        // 3. 포인트 사용
-        UserPoint updated = userPointTable.insertOrUpdate(userId, newPoint);
-        // 4. 포인트 히스토리 등록
-        pointHistoryTable.insert(userId, amount, TransactionType.USE, updated.updateMillis());
-
-        return updated;
     }
 
     // 공통 검증 로직

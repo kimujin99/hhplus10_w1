@@ -6,12 +6,17 @@ import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @AllArgsConstructor
 public class PointService {
     private final UserPointTable userPointTable;
     private final PointHistoryTable pointHistoryTable;
+
+    // 각 유저별로 락 객체 관리
+    private final Map<Long, Object> userLocks = new ConcurrentHashMap<>();
 
     /**
      * 포인트 조회
@@ -33,14 +38,18 @@ public class PointService {
     public UserPoint chargePoint (long userId, long amount) {
         validateAmount(amount, PointPolicy.CHARGE_UNIT, TransactionType.CHARGE.label());
 
-        // 1. 포인트 조회
-        UserPoint current = userPointTable.selectById(userId);
-        // 2. 포인트 충전
-        UserPoint updated = userPointTable.insertOrUpdate(userId, current.point() + amount);
-        // 3. 포인트 히스토리 등록
-        pointHistoryTable.insert(userId, amount, TransactionType.CHARGE, updated.updateMillis());
+        // 유저별 락 생성
+        Object lock = userLocks.computeIfAbsent(userId, k -> new Object());
 
-        return updated;
+        synchronized (lock) {
+            // 1. 포인트 조회
+            UserPoint current = userPointTable.selectById(userId);
+            // 2. 포인트 충전
+            UserPoint updated = userPointTable.insertOrUpdate(userId, current.point() + amount);
+            // 3. 포인트 히스토리 등록
+            pointHistoryTable.insert(userId, amount, TransactionType.CHARGE, updated.updateMillis());
+            return updated;
+        }
     }
 
     /**

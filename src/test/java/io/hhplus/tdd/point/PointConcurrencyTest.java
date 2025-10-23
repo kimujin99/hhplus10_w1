@@ -69,7 +69,6 @@ class PointConcurrencyTest {
         int threadCount = 20;
         ExecutorService executorService = Executors.newFixedThreadPool(threadCount);
         CountDownLatch latch = new CountDownLatch(threadCount);
-        AtomicInteger successCount = new AtomicInteger(0);
 
         // 초기 포인트 설정
         userPointTable.insertOrUpdate(userId, initialPoint);
@@ -106,32 +105,31 @@ class PointConcurrencyTest {
         // given
         int userCount = 5;
         int threadPerUser = 10;
-        long chargeAmount = 100L;
+        long chargeAmount = 1000L;
         ExecutorService executorService = Executors.newFixedThreadPool(userCount * threadPerUser);
         CountDownLatch latch = new CountDownLatch(userCount * threadPerUser);
 
         // when
-        // TODO: PointService 구현 후 동시성 테스트 작성
-        // for (long userId = 1; userId <= userCount; userId++) {
-        //     final long currentUserId = userId;
-        //     for (int i = 0; i < threadPerUser; i++) {
-        //         executorService.submit(() -> {
-        //             try {
-        //                 pointService.chargePoint(currentUserId, chargeAmount);
-        //             } finally {
-        //                 latch.countDown();
-        //             }
-        //         });
-        //     }
-        // }
-        // latch.await();
+        for (long userId = 1; userId <= userCount; userId++) {
+            final long currentUserId = userId;
+            for (int i = 0; i < threadPerUser; i++) {
+                executorService.submit(() -> {
+                    try {
+                        pointService.chargePoint(currentUserId, chargeAmount);
+                    } finally {
+                        latch.countDown();
+                    }
+                });
+            }
+        }
+        latch.await();
 
         // then
-        // TODO: 각 사용자의 최종 포인트가 1000 (100 * 10)이어야 함
-        // for (long userId = 1; userId <= userCount; userId++) {
-        //     UserPoint result = pointService.getUserPoint(userId);
-        //     assertThat(result.point()).isEqualTo(1000L);
-        // }
+        // 각 사용자의 최종 포인트가 10000 (1000 * 10)이어야 함
+        for (long userId = 1; userId <= userCount; userId++) {
+            UserPoint result = pointService.getUserPoint(userId);
+            assertThat(result.point()).isEqualTo(10000L);
+        }
 
         executorService.shutdown();
     }

@@ -5,7 +5,6 @@ import io.hhplus.tdd.database.UserPointTable;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -13,10 +12,6 @@ import java.util.List;
 public class PointService {
     private final UserPointTable userPointTable;
     private final PointHistoryTable pointHistoryTable;
-
-    // 포인트 정책 단위 설정
-    private static final int CHARGE_UNIT = 1000;
-    private static final int USE_UNIT = 100;
 
     /**
      * 포인트 조회
@@ -36,12 +31,7 @@ public class PointService {
      * 포인트 충전
      */
     public UserPoint chargePoint (long userId, long amount) {
-        if (amount <= 0) {
-            throw new IllegalArgumentException("충전 금액은 0보다 커야합니다.");
-        }
-        if(amount % CHARGE_UNIT != 0) {
-            throw new IllegalArgumentException(String.format("충전은 %s원 단위로만 가능합니다.", CHARGE_UNIT));
-        }
+        validateAmount(amount, PointPolicy.CHARGE_UNIT, TransactionType.CHARGE.label());
 
         // 1. 포인트 조회
         UserPoint current = userPointTable.selectById(userId);
@@ -56,10 +46,31 @@ public class PointService {
     /**
      * 포인트 사용
      */
-    public UserPoint usePoint (String userId, long amount) {
-        if(amount % USE_UNIT != 0) {
-            throw new IllegalArgumentException(String.format("사용은 %s원 단위로만 가능합니다.", USE_UNIT));
+    public UserPoint usePoint (long userId, long amount) {
+        validateAmount(amount, PointPolicy.USE_UNIT, TransactionType.USE.label());
+
+        // 1. 포인트 조회
+        UserPoint current = userPointTable.selectById(userId);
+        long newPoint = current.point() - amount;
+        // 2. 잔액 부족 검증
+        if(newPoint < 0) {
+            throw new IllegalArgumentException("포인트 잔액이 부족합니다.");
         }
-        return null;
+        // 3. 포인트 사용
+        UserPoint updated = userPointTable.insertOrUpdate(userId, newPoint);
+        // 4. 포인트 히스토리 등록
+        pointHistoryTable.insert(userId, amount, TransactionType.USE, updated.updateMillis());
+
+        return updated;
+    }
+
+    // 공통 검증 로직
+    private void validateAmount(long amount, int unit, String type) {
+        if (amount <= 0) {
+            throw new IllegalArgumentException(type + " 금액은 0보다 커야합니다.");
+        }
+        if (amount % unit != 0) {
+            throw new IllegalArgumentException(String.format("%s은 %d원 단위로만 가능합니다.", type, unit));
+        }
     }
 }

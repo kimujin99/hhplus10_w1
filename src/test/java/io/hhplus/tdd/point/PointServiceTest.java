@@ -5,9 +5,14 @@ import io.hhplus.tdd.database.UserPointTable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -23,26 +28,57 @@ class PointServiceTest {
     @Mock
     private PointHistoryTable pointHistoryTable;
 
-    // TODO: PointService 구현 후 @InjectMocks 주석 해제
-    // @InjectMocks
-    // private PointService pointService;
+    @InjectMocks
+    private PointService pointService;
 
-    @Test
+    /*
+    * 유저 포인트 테스트
+    * */
+    @ParameterizedTest
+    @CsvSource({
+            "1, 1000",
+            "2, 2000"
+    })
     @DisplayName("포인트 조회 - 성공")
-    void getUserPoint_Success() {
+    void getUserPoint_Success(long userId, long amount) {
         // given
-        long userId = 1L;
-        UserPoint expected = new UserPoint(userId, 1000L, System.currentTimeMillis());
+        UserPoint expected = new UserPoint(userId, amount, System.currentTimeMillis());
         when(userPointTable.selectById(userId)).thenReturn(expected);
 
         // when
-        // TODO: PointService 구현 후 테스트 작성
-        // UserPoint result = pointService.getUserPoint(userId);
+        UserPoint result = pointService.getUserPoint(userId);
 
         // then
-        // assertThat(result).isNotNull();
-        // assertThat(result.id()).isEqualTo(userId);
-        // assertThat(result.point()).isEqualTo(1000L);
+        assertThat(result).isNotNull();
+        assertThat(result.id()).isEqualTo(userId);
+        assertThat(result.point()).isEqualTo(amount);
+    }
+
+    /*
+    * 포인트 히스토리 테스트
+    * */
+    @Test
+    @DisplayName("포인트 히스토리 조회 - 성공")
+    void getPointHistory_Success() {
+        // given
+        long userId = 1L;
+        List<PointHistory> expected = List.of(
+                new PointHistory(1L, userId, 1000L, TransactionType.CHARGE, System.currentTimeMillis()),
+                new PointHistory(1L, userId, 300L, TransactionType.USE, System.currentTimeMillis())
+        );
+        when(pointHistoryTable.selectAllByUserId(userId)).thenReturn(expected);
+
+        // when
+        List<PointHistory> histories = pointService.getPointHistory(userId);
+
+        // then
+        assertThat(histories).isNotNull();
+        assertThat(histories).hasSize(2);
+        // 어디까지 검증해야 하는지?
+        assertThat(histories.get(0).type()).isEqualTo(TransactionType.CHARGE);
+        assertThat(histories.get(0).amount()).isEqualTo(1000L);
+        assertThat(histories.get(1).type()).isEqualTo(TransactionType.USE);
+        assertThat(histories.get(1).amount()).isEqualTo(300L);
     }
 
     @Test
@@ -52,9 +88,7 @@ class PointServiceTest {
         long userId = 1L;
         long chargeAmount = 500L;
         long currentPoint = 1000L;
-
         // when
-        // TODO: PointService 구현 후 테스트 작성
 
         // then
         // assertThat(result.point()).isEqualTo(1500L);
@@ -116,18 +150,5 @@ class PointServiceTest {
         // assertThatThrownBy(() -> pointService.usePoint(userId, useAmount))
         //     .isInstanceOf(IllegalArgumentException.class)
         //     .hasMessage("사용 금액은 0보다 커야 합니다.");
-    }
-
-    @Test
-    @DisplayName("포인트 히스토리 조회 - 성공")
-    void getPointHistory_Success() {
-        // given
-        long userId = 1L;
-
-        // when
-        // TODO: PointService 구현 후 테스트 작성
-
-        // then
-        // assertThat(histories).isNotNull();
     }
 }

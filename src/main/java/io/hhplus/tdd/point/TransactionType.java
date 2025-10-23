@@ -7,5 +7,16 @@ package io.hhplus.tdd.point;
  * - USE : 사용
  */
 public enum TransactionType {
-    CHARGE, USE
+    CHARGE("충전"),
+    USE("사용");
+
+    private final String label;
+
+    TransactionType(String label) {
+        this.label = label;
+    }
+
+    public String label() {
+        return label;
+    }
 }

@@ -1,6 +1,8 @@
 package io.hhplus.tdd.point;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.hhplus.tdd.database.PointHistoryTable;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,174 +22,176 @@ class PointControllerIntegrationTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @Autowired
-    private ObjectMapper objectMapper;
-
     @Test
-    @DisplayName("GET /point/{id} - 포인트 조회 성공")
-    void getPoint_Success() throws Exception {
+    @DisplayName("포인트 여러번 충전 후 조회 - 전체 플로우")
+    void chargeMultipleTimesAndGetUserPoint_Flow() throws Exception {
         // given
         long userId = 1L;
+        long chargeAmount1 = 1000L;
+        long chargeAmount2 = 3000L;
 
-        // when & then
+        // when: 포인트 2회 충전
+        mockMvc.perform(patch("/point/{id}/charge", userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(String.valueOf(chargeAmount1)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(patch("/point/{id}/charge", userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(String.valueOf(chargeAmount2)))
+                .andExpect(status().isOk());
+
+        // then: 조회로 최종 포인트 확인
         mockMvc.perform(get("/point/{id}", userId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(userId));
-                // TODO: PointService 구현 후 추가 검증
-                // .andExpect(jsonPath("$.point").exists())
-                // .andExpect(jsonPath("$.updateMillis").exists());
+                .andExpect(jsonPath("$.id").value(userId))
+                .andExpect(jsonPath("$.point").value(chargeAmount1 + chargeAmount2));
     }
 
     @Test
-    @DisplayName("PATCH /point/{id}/charge - 포인트 충전 성공")
-    void chargePoint_Success() throws Exception {
-        // given
-        long userId = 1L;
-        long chargeAmount = 1000L;
-
-        // when & then
-        mockMvc.perform(patch("/point/{id}/charge", userId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(String.valueOf(chargeAmount)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(userId));
-                // TODO: PointService 구현 후 추가 검증
-                // .andExpect(jsonPath("$.point").value(chargeAmount));
-    }
-
-    @Test
-    @DisplayName("PATCH /point/{id}/charge - 포인트 충전 실패: 음수 금액")
-    void chargePoint_Fail_NegativeAmount() throws Exception {
-        // given
-        long userId = 1L;
-        long chargeAmount = -500L;
-
-        // when & then
-        // TODO: PointService 구현 및 예외 처리 후 테스트 작성
-        // mockMvc.perform(patch("/point/{id}/charge", userId)
-        //                 .contentType(MediaType.APPLICATION_JSON)
-        //                 .content(String.valueOf(chargeAmount)))
-        //         .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    @DisplayName("PATCH /point/{id}/use - 포인트 사용 성공")
-    void usePoint_Success() throws Exception {
+    @DisplayName("포인트 충전 → 사용 → 조회 - 전체 플로우")
+    void chargeUseAndGetPoint_Flow() throws Exception {
         // given
         long userId = 2L;
         long chargeAmount = 1000L;
         long useAmount = 300L;
 
-        // 먼저 포인트 충전
+        // when: 포인트 충전
         mockMvc.perform(patch("/point/{id}/charge", userId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(String.valueOf(chargeAmount)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(String.valueOf(chargeAmount)))
                 .andExpect(status().isOk());
 
-        // when & then
+        // when: 포인트 사용
         mockMvc.perform(patch("/point/{id}/use", userId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(String.valueOf(useAmount)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(String.valueOf(useAmount)))
+                .andExpect(status().isOk());
+
+        // then: 포인트 조회로 잔액 확인
+        mockMvc.perform(get("/point/{id}", userId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(userId));
-                // TODO: PointService 구현 후 추가 검증
-                // .andExpect(jsonPath("$.point").value(700L));
     }
 
     @Test
-    @DisplayName("PATCH /point/{id}/use - 포인트 사용 실패: 잔액 부족")
-    void usePoint_Fail_InsufficientBalance() throws Exception {
+    @DisplayName("포인트 충전 → 사용 → 충전 → 히스토리 조회 - 복합 플로우")
+    void complexFlow_IntegrationScenario() throws Exception {
         // given
         long userId = 3L;
-        long useAmount = 5000L;
-
-        // when & then
-        // TODO: PointService 구현 및 예외 처리 후 테스트 작성
-        // mockMvc.perform(patch("/point/{id}/use", userId)
-        //                 .contentType(MediaType.APPLICATION_JSON)
-        //                 .content(String.valueOf(useAmount)))
-        //         .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    @DisplayName("GET /point/{id}/histories - 포인트 히스토리 조회 성공")
-    void getPointHistories_Success() throws Exception {
-        // given
-        long userId = 4L;
-        long chargeAmount = 1000L;
-        long useAmount = 300L;
-
-        // 포인트 충전
-        mockMvc.perform(patch("/point/{id}/charge", userId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(String.valueOf(chargeAmount)))
-                .andExpect(status().isOk());
-
-        // 포인트 사용
-        mockMvc.perform(patch("/point/{id}/use", userId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(String.valueOf(useAmount)))
-                .andExpect(status().isOk());
-
-        // when & then
-        mockMvc.perform(get("/point/{id}/histories", userId))
-                .andExpect(status().isOk());
-                // TODO: PointService 구현 후 추가 검증
-                // .andExpect(jsonPath("$").isArray())
-                // .andExpect(jsonPath("$.length()").value(2));
-    }
-
-    @Test
-    @DisplayName("포인트 충전 후 조회 - 통합 시나리오")
-    void chargeAndGetPoint_IntegrationScenario() throws Exception {
-        // given
-        long userId = 5L;
-        long chargeAmount = 2000L;
 
         // when: 포인트 충전
         mockMvc.perform(patch("/point/{id}/charge", userId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(String.valueOf(chargeAmount)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("5000"))
                 .andExpect(status().isOk());
 
-        // then: 포인트 조회로 확인
-        mockMvc.perform(get("/point/{id}", userId))
+        // when: 포인트 사용
+        mockMvc.perform(patch("/point/{id}/use", userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("2000"))
+                .andExpect(status().isOk());
+
+        // when: 포인트 재충전
+        mockMvc.perform(patch("/point/{id}/charge", userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("3000"))
+                .andExpect(status().isOk());
+
+        // then: 히스토리 조회로 전체 거래 확인
+        mockMvc.perform(get("/point/{id}/histories", userId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(userId));
-                // TODO: PointService 구현 후 추가 검증
-                // .andExpect(jsonPath("$.point").value(chargeAmount));
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[0].type").value("CHARGE"))
+                .andExpect(jsonPath("$[1].type").value("USE"))
+                .andExpect(jsonPath("$[2].type").value("CHARGE"));
     }
 
     @Test
-    @DisplayName("포인트 충전, 사용, 히스토리 조회 - 전체 플로우 통합 시나리오")
-    void fullFlow_IntegrationScenario() throws Exception {
+    @DisplayName("포인트 충전 실패 - 음수 금액으로 400 에러 응답")
+    void chargePoint_Fail_NegativeAmount_Returns400() throws Exception {
+        // given
+        long userId = 4L;
+        long negativeAmount = -1000L;
+
+        // when & then
+        mockMvc.perform(patch("/point/{id}/charge", userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(String.valueOf(negativeAmount)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("400"))
+                .andExpect(jsonPath("$.message").value("충전 금액은 0보다 커야합니다."));
+    }
+
+    @Test
+    @DisplayName("포인트 충전 실패 - 잘못된 단위로 400 에러 응답")
+    void chargePoint_Fail_InvalidUnit_Returns400() throws Exception {
+        // given
+        long userId = 5L;
+        long invalidAmount = 500L;
+
+        // when & then
+        mockMvc.perform(patch("/point/{id}/charge", userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(String.valueOf(invalidAmount)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("400"))
+                .andExpect(jsonPath("$.message").value("충전은 1000원 단위로만 가능합니다."));
+    }
+
+    @Test
+    @DisplayName("포인트 사용 실패 - 음수 금액으로 400 에러 응답")
+    void usePoint_Fail_NegativeAmount_Returns400() throws Exception {
         // given
         long userId = 6L;
+        long negativeAmount = -500L;
 
-        // when & then: 포인트 충전
-        mockMvc.perform(patch("/point/{id}/charge", userId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("5000"))
-                .andExpect(status().isOk());
-
-        // when & then: 포인트 사용
+        // when & then
         mockMvc.perform(patch("/point/{id}/use", userId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("2000"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(String.valueOf(negativeAmount)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("400"))
+                .andExpect(jsonPath("$.message").value("사용 금액은 0보다 커야합니다."));
+    }
+
+    @Test
+    @DisplayName("포인트 사용 실패 - 잘못된 단위로 400 에러 응답")
+    void usePoint_Fail_InvalidUnit_Returns400() throws Exception {
+        // given
+        long userId = 7L;
+        long invalidAmount = 50L;
+
+        // when & then
+        mockMvc.perform(patch("/point/{id}/use", userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(String.valueOf(invalidAmount)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("400"))
+                .andExpect(jsonPath("$.message").value("사용은 100원 단위로만 가능합니다."));
+    }
+
+    @Test
+    @DisplayName("포인트 사용 실패 - 잔액 부족으로 400 에러 응답")
+    void usePoint_Fail_InsufficientBalance_Returns400() throws Exception {
+        // given
+        long userId = 8L;
+        long chargeAmount = 1000L;
+        long useAmount = 2000L;
+
+        // 먼저 포인트 충전
+        mockMvc.perform(patch("/point/{id}/charge", userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(String.valueOf(chargeAmount)))
                 .andExpect(status().isOk());
 
-        // when & then: 포인트 조회
-        mockMvc.perform(get("/point/{id}", userId))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(userId));
-                // TODO: PointService 구현 후 추가 검증
-                // .andExpect(jsonPath("$.point").value(3000L));
-
-        // when & then: 히스토리 조회
-        mockMvc.perform(get("/point/{id}/histories", userId))
-                .andExpect(status().isOk());
-                // TODO: PointService 구현 후 추가 검증
-                // .andExpect(jsonPath("$").isArray())
-                // .andExpect(jsonPath("$.length()").value(2));
+        // when & then: 잔액보다 많이 사용 시도
+        mockMvc.perform(patch("/point/{id}/use", userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(String.valueOf(useAmount)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("400"))
+                .andExpect(jsonPath("$.message").value("포인트 잔액이 부족합니다."));
     }
 }

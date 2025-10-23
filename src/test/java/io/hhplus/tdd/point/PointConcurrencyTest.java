@@ -65,42 +65,37 @@ class PointConcurrencyTest {
     void chargeAndUsePoint_ConcurrentRequests() throws InterruptedException {
         // given
         long userId = 1L;
-        long initialPoint = 1000L;
+        long initialPoint = 10000L;
         int threadCount = 20;
         ExecutorService executorService = Executors.newFixedThreadPool(threadCount);
         CountDownLatch latch = new CountDownLatch(threadCount);
         AtomicInteger successCount = new AtomicInteger(0);
 
         // 초기 포인트 설정
-        // TODO: PointService 구현 후 초기화
-        // userPointTable.insertOrUpdate(userId, initialPoint);
+        userPointTable.insertOrUpdate(userId, initialPoint);
 
         // when
-        // TODO: PointService 구현 후 동시성 테스트 작성
-        // 10개 스레드는 충전(+100), 10개 스레드는 사용(-50)
-        // for (int i = 0; i < threadCount; i++) {
-        //     final int index = i;
-        //     executorService.submit(() -> {
-        //         try {
-        //             if (index < 10) {
-        //                 pointService.chargePoint(userId, 100L);
-        //             } else {
-        //                 pointService.usePoint(userId, 50L);
-        //             }
-        //             successCount.incrementAndGet();
-        //         } catch (Exception e) {
-        //             // 예외 발생 시 무시
-        //         } finally {
-        //             latch.countDown();
-        //         }
-        //     });
-        // }
-        // latch.await();
+        // 10개 스레드는 충전(+1000), 10개 스레드는 사용(-500)
+        for(int i = 0; i < threadCount; i++) {
+            final int index = i;
+            executorService.execute(() -> {
+                try {
+                    if (index < 10) {
+                        pointService.chargePoint(userId, 1000L);
+                    } else {
+                        pointService.usePoint(userId, 500L);
+                    }
+                } finally {
+                    latch.countDown();
+                }
+            });
+        }
+        latch.await();
 
         // then
-        // TODO: 최종 포인트 = 1000 + (100 * 10) - (50 * 10) = 1500
-        // UserPoint result = pointService.getUserPoint(userId);
-        // assertThat(result.point()).isEqualTo(1500L);
+        // 최종 포인트 = 1000 + (100 * 10) - (50 * 10) = 1500
+        UserPoint result = pointService.getUserPoint(userId);
+        assertThat(result.point()).isEqualTo(15000L);
 
         executorService.shutdown();
     }

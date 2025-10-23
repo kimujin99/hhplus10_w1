@@ -107,4 +107,91 @@ class PointControllerIntegrationTest {
                 .andExpect(jsonPath("$[1].type").value("USE"))
                 .andExpect(jsonPath("$[2].type").value("CHARGE"));
     }
+
+    @Test
+    @DisplayName("포인트 충전 실패 - 음수 금액으로 400 에러 응답")
+    void chargePoint_Fail_NegativeAmount_Returns400() throws Exception {
+        // given
+        long userId = 4L;
+        long negativeAmount = -1000L;
+
+        // when & then
+        mockMvc.perform(patch("/point/{id}/charge", userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(String.valueOf(negativeAmount)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("400"))
+                .andExpect(jsonPath("$.message").value("충전 금액은 0보다 커야합니다."));
+    }
+
+    @Test
+    @DisplayName("포인트 충전 실패 - 잘못된 단위로 400 에러 응답")
+    void chargePoint_Fail_InvalidUnit_Returns400() throws Exception {
+        // given
+        long userId = 5L;
+        long invalidAmount = 500L;
+
+        // when & then
+        mockMvc.perform(patch("/point/{id}/charge", userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(String.valueOf(invalidAmount)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("400"))
+                .andExpect(jsonPath("$.message").value("충전은 1000원 단위로만 가능합니다."));
+    }
+
+    @Test
+    @DisplayName("포인트 사용 실패 - 음수 금액으로 400 에러 응답")
+    void usePoint_Fail_NegativeAmount_Returns400() throws Exception {
+        // given
+        long userId = 6L;
+        long negativeAmount = -500L;
+
+        // when & then
+        mockMvc.perform(patch("/point/{id}/use", userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(String.valueOf(negativeAmount)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("400"))
+                .andExpect(jsonPath("$.message").value("사용 금액은 0보다 커야합니다."));
+    }
+
+    @Test
+    @DisplayName("포인트 사용 실패 - 잘못된 단위로 400 에러 응답")
+    void usePoint_Fail_InvalidUnit_Returns400() throws Exception {
+        // given
+        long userId = 7L;
+        long invalidAmount = 50L;
+
+        // when & then
+        mockMvc.perform(patch("/point/{id}/use", userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(String.valueOf(invalidAmount)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("400"))
+                .andExpect(jsonPath("$.message").value("사용은 100원 단위로만 가능합니다."));
+    }
+
+    @Test
+    @DisplayName("포인트 사용 실패 - 잔액 부족으로 400 에러 응답")
+    void usePoint_Fail_InsufficientBalance_Returns400() throws Exception {
+        // given
+        long userId = 8L;
+        long chargeAmount = 1000L;
+        long useAmount = 2000L;
+
+        // 먼저 포인트 충전
+        mockMvc.perform(patch("/point/{id}/charge", userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(String.valueOf(chargeAmount)))
+                .andExpect(status().isOk());
+
+        // when & then: 잔액보다 많이 사용 시도
+        mockMvc.perform(patch("/point/{id}/use", userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(String.valueOf(useAmount)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("400"))
+                .andExpect(jsonPath("$.message").value("포인트 잔액이 부족합니다."));
+    }
 }

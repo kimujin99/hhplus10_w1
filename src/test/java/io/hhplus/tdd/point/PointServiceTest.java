@@ -11,7 +11,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -122,6 +121,21 @@ class PointServiceTest {
     }
 
     @Test
+    @DisplayName("포인트 충전 - 실패: 0원 충전")
+    void chargePoint_Fail_ZeroAmount() {
+        // given
+        long userId = 1L;
+        long chargeAmount = 0L;
+
+        // when & then
+        assertThatThrownBy(() -> pointService.chargePoint(userId, chargeAmount))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("충전 금액은 0보다 커야합니다.");
+
+        verify(userPointTable, never()).insertOrUpdate(anyLong(), anyLong());
+    }
+
+    @Test
     @DisplayName("포인트 충전 - 실패: 음수 금액")
     void chargePoint_Fail_NegativeAmount() {
         // given
@@ -190,6 +204,21 @@ class PointServiceTest {
     }
 
     @Test
+    @DisplayName("포인트 사용 - 실패: 0원 사용")
+    void usePoint_Fail_ZeroAmount() {
+        // given
+        long userId = 1L;
+        long useAmount = 0L;
+
+        // when & then
+        assertThatThrownBy(() -> pointService.usePoint(userId, useAmount))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("사용 금액은 0보다 커야합니다.");
+
+        verify(userPointTable, never()).insertOrUpdate(anyLong(), anyLong());
+    }
+
+    @Test
     @DisplayName("포인트 사용 - 실패: 음수 금액")
     void usePoint_Fail_NegativeAmount() {
         // given
@@ -226,7 +255,6 @@ class PointServiceTest {
         long userId = 1L;
         long useAmount = 2000L;
         long currentPoint = 1000L;
-        long newPoint = currentPoint - useAmount;
 
         UserPoint current = new UserPoint(userId, currentPoint, System.currentTimeMillis());
         when(userPointTable.selectById(userId)).thenReturn(current);
@@ -237,5 +265,32 @@ class PointServiceTest {
                 .hasMessage("포인트 잔액이 부족합니다.");
 
         verify(userPointTable, never()).insertOrUpdate(anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("포인트 사용 - 성공: 정확히 잔액만큼 사용")
+    void usePoint_Success_ExactBalance() {
+        // given
+        long userId = 1L;
+        long currentPoint = 1000L;
+        long useAmount = 1000L;
+        long newPoint = 0L;
+
+        UserPoint current = new UserPoint(userId, currentPoint, System.currentTimeMillis());
+        UserPoint used = new UserPoint(userId, newPoint, System.currentTimeMillis());
+
+        when(userPointTable.selectById(userId)).thenReturn(current);
+        when(userPointTable.insertOrUpdate(userId, newPoint)).thenReturn(used);
+
+        // when
+        UserPoint result = pointService.usePoint(userId, useAmount);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.point()).isEqualTo(0L);
+
+        verify(userPointTable).selectById(userId);
+        verify(userPointTable).insertOrUpdate(userId, newPoint);
+        verify(pointHistoryTable).insert(eq(userId), eq(useAmount), eq(TransactionType.USE), anyLong());
     }
 }

@@ -18,8 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("PointService 단위 테스트")
@@ -133,6 +132,8 @@ class PointServiceTest {
         assertThatThrownBy(() -> pointService.chargePoint(userId, chargeAmount))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessage("충전 금액은 0보다 커야합니다.");
+
+        verify(userPointTable, never()).insertOrUpdate(anyLong(), anyLong());
     }
 
     @Test
@@ -146,6 +147,8 @@ class PointServiceTest {
         assertThatThrownBy(() -> pointService.chargePoint(userId, chargeAmount))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessage("충전은 1000원 단위로만 가능합니다.");
+
+        verify(userPointTable, never()).insertOrUpdate(anyLong(), anyLong());
     }
 
     @Test
@@ -187,21 +190,6 @@ class PointServiceTest {
     }
 
     @Test
-    @DisplayName("포인트 사용 - 실패: 잔액 부족")
-    void usePoint_Fail_InsufficientBalance() {
-        // given
-        long userId = 1L;
-        long useAmount = 2000L;
-        long currentPoint = 1000L;
-
-        // when & then
-        // TODO: PointService 구현 후 예외 테스트 작성
-        // assertThatThrownBy(() -> pointService.usePoint(userId, useAmount))
-        //     .isInstanceOf(IllegalArgumentException.class)
-        //     .hasMessage("포인트 잔액이 부족합니다.");
-    }
-
-    @Test
     @DisplayName("포인트 사용 - 실패: 음수 금액")
     void usePoint_Fail_NegativeAmount() {
         // given
@@ -209,9 +197,45 @@ class PointServiceTest {
         long useAmount = -500L;
 
         // when & then
-        // TODO: PointService 구현 후 예외 테스트 작성
-        // assertThatThrownBy(() -> pointService.usePoint(userId, useAmount))
-        //     .isInstanceOf(IllegalArgumentException.class)
-        //     .hasMessage("사용 금액은 0보다 커야 합니다.");
+        assertThatThrownBy(() -> pointService.usePoint(userId, useAmount))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("사용 금액은 0보다 커야합니다.");
+
+        verify(userPointTable, never()).insertOrUpdate(anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("포인트 사용 - 실패: 단위 틀림(100원)")
+    void usePoint_Fail_InvalidUnit() {
+        // given
+        long userId = 1L;
+        long useAmount = 50L;
+
+        // when & then
+        assertThatThrownBy(() -> pointService.usePoint(userId, useAmount))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("사용은 100원 단위로만 가능합니다.");
+
+        verify(userPointTable, never()).insertOrUpdate(anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("포인트 사용 - 실패: 잔액 부족")
+    void usePoint_Fail_InsufficientBalance() {
+        // given
+        long userId = 1L;
+        long useAmount = 2000L;
+        long currentPoint = 1000L;
+        long newPoint = currentPoint - useAmount;
+
+        UserPoint current = new UserPoint(userId, currentPoint, System.currentTimeMillis());
+        when(userPointTable.selectById(userId)).thenReturn(current);
+
+        // when & then
+        assertThatThrownBy(() -> pointService.usePoint(userId, useAmount))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("포인트 잔액이 부족합니다.");
+
+        verify(userPointTable, never()).insertOrUpdate(anyLong(), anyLong());
     }
 }
